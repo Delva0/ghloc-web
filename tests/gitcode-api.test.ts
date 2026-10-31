@@ -1,74 +1,46 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getGitCodeLocs, getGitCodeRepo } from "../src/lib/gitcode/server.ts";
+import { enrichGitCodeRepo } from "../src/lib/gitcode/server.ts";
 
-const originalFetch = globalThis.fetch;
-const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
-
-void test("GitCode API pagination, failure handling and public access", async t => {
+void test("optional metadata cannot block a public Git repository", async t => {
+	const originalFetch = globalThis.fetch;
+	const originalToken = process.env.NITRO_GITCODE_TOKEN;
 	t.after(() => {
 		globalThis.fetch = originalFetch;
+		if (originalToken === undefined) {
+			delete process.env.NITRO_GITCODE_TOKEN;
+		} else {
+			process.env.NITRO_GITCODE_TOKEN = originalToken;
+		}
 	});
-	await t.test("reads every page and counts all 150 matching files", async () => {
-		const pages: number[] = [];
-		globalThis.fetch = async input => {
-			const url = new URL(input instanceof Request ? input.url : input.toString());
-			if (url.pathname.endsWith("/git/trees/HEAD") && !url.searchParams.has("recursive")) {
-				return json({ tree: [] });
-			}
-			if (url.pathname.includes("/git/trees/")) {
-				const page = Number(url.searchParams.get("page"));
-				pages.push(page);
-				return json({
-					tree: Array.from({ length: page === 1 ? 100 : 50 }, (_, i) => ({
-						path: `src/${(page - 1) * 100 + i}.ts`,
-						type: "blob",
-						sha: String(i),
-					})),
-				});
-			}
-			if (url.pathname.includes("/raw/")) {
-				return new Response("one\n\ntwo\n");
-			}
-			return json({}, 401);
-		};
-		const locs = await getGitCodeLocs("test", "pagination");
-		assert.equal(locs.loc, 300);
-		assert.equal((locs.children!.src as typeof locs).loc, 300);
-		assert.deepEqual(pages, [1, 2]);
-	});
-	await t.test("rejects a failed file request instead of returning a partial total", async () => {
-		globalThis.fetch = async input => {
-			const url = new URL(input instanceof Request ? input.url : input.toString());
-			if (url.pathname.includes("/git/trees/")) {
-				return json({ tree: [{ path: "missing.ts", type: "blob", sha: "1" }] });
-			}
-			return url.pathname.includes("/raw/") ? json({}, 404) : json({}, 401);
-		};
-		await assert.rejects(getGitCodeLocs("test", "missing-file"), { statusCode: 404 });
-	});
-	await t.test("proves anonymous repository access before authenticated metadata", async () => {
-		let calls = 0;
-		globalThis.fetch = async () => {
-			calls++;
-			return json({}, 401);
-		};
-		await assert.rejects(getGitCodeRepo("test", "private-repo"), { statusCode: 401 });
-		assert.equal(calls, 1);
-	});
-	await t.test("detects an upstream that ignores the page parameter", async () => {
-		const entries = Array.from({ length: 100 }, (_, i) => ({
-			path: `${i}.ts`,
-			type: "blob",
-			sha: String(i),
-		}));
-		globalThis.fetch = async input => {
-			const url = new URL(input instanceof Request ? input.url : input.toString());
-			if (url.pathname.includes("/git/trees/")) {
-				return json({ tree: url.searchParams.has("recursive") ? entries : [] });
-			}
-			return json({}, 401);
-		};
-		await assert.rejects(getGitCodeLocs("test", "duplicate-page"), { statusCode: 502 });
+	const repo = { default_branch: "main" };
+	let calls = 0;
+	globalThis.fetch = async () => {
+		calls++;
+		return new Response("{}", { status: 429 });
+	};
+	delete process.env.NITRO_GITCODE_TOKEN;
+	assert.deepEqual(await enrichGitCodeRepo("test", "repo", repo), repo);
+	assert.equal(calls, 0, "anonymous API must not be called");
+	process.env.NITRO_GITCODE_TOKEN = "test-token";
+	assert.deepEqual(await enrichGitCodeRepo("test", "repo", repo), repo);
+	assert.equal(calls, 1, "rate limiting is a metadata-only failure");
+	globalThis.fetch = async () => {
+		throw new Error("network unavailable");
+	};
+	assert.deepEqual(await enrichGitCodeRepo("test", "repo", repo), repo);
+	globalThis.fetch = async () =>
+		Response.json({ private: true, description: "private metadata" });
+	assert.deepEqual(await enrichGitCodeRepo("test", "repo", repo), repo);
+	globalThis.fetch = async () =>
+		Response.json({
+			default_branch: "wrong",
+			description: "public description",
+			stargazers_count: 5,
+		});
+	assert.deepEqual(await enrichGitCodeRepo("test", "repo", repo), {
+		...repo,
+		description: "public description",
+		stargazers_count: 5,
 	});
 });
