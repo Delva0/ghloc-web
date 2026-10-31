@@ -3,6 +3,8 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
+		"start": "node .output/server/index.mjs",
+		"test": "node --experimental-strip-types --test tests/*.test.ts",
 		"build": "cross-env FORCE_COLOR=1 run-s -l build:languages build:sitemap build:vite",
 		"build:languages": "node scripts/build-languages.ts",
 		"build:sitemap": "node scripts/build-sitemap.ts",
@@ -13,8 +15,8 @@
 		"lint": "cross-env FORCE_COLOR=1 run-p -lc lint:*",
 		"lint:oxlint": "oxlint .",
 		"lint:tsc": "tsgo --noEmit",
-		"lint:format": "pt format --check",
-		"format": "pt format",
+		"lint:format": "oxfmt --config oxfmt.config.ts --check .",
+		"format": "oxfmt --config oxfmt.config.ts --write .",
 		"clean": "rimraf .output .vercel node_modules/.cache",
 		"prepare": "pt prepare"
 	},

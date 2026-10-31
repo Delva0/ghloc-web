@@ -16,7 +16,7 @@ export default defineConfig({
 			nitro: {
 				errorHandler: "./src/error.ts",
 				compatibilityDate: "2026-08-02",
-				preset: process.env.VERCEL ? "vercel" : undefined,
+				preset: process.env.VERCEL ? "vercel" : "node-server",
 			},
 		}),
 		tailwindcss(),

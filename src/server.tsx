@@ -2,7 +2,7 @@ import { defineServerEntry } from "@pajecawav/yamf/server";
 import { DEFAULT_THEME, getThemeColor } from "~/lib/theme";
 import { buildPageTitle } from "~/lib/title";
 
-const DESCRIPTION = "Count lines of code in a GitHub repository.";
+const DESCRIPTION = "Count lines of code in GitHub and GitCode repositories.";
 const DEFAULT_IMAGE = "android-chrome-512x512.png";
 
 export default defineServerEntry({

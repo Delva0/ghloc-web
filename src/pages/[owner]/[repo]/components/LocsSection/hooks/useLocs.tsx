@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "hono/jsx";
 import { FetchError } from "ofetch";
 import useSWRImmutable from "swr/immutable";
 import { ghlocApi, Locs, LocsChild } from "~/lib/ghloc/api";
+import type { RepositoryProvider } from "~/lib/repository";
 import { toast } from "~/lib/toasts/toasts";
 
 export type SortOrder = "type" | "locs";
@@ -14,6 +15,7 @@ export interface UseLocsOptions {
 	owner: string;
 	repo: string;
 	branch?: string;
+	provider?: RepositoryProvider;
 }
 
 export function isFolder(child: LocsChild): child is Locs {
@@ -22,11 +24,11 @@ export function isFolder(child: LocsChild): child is Locs {
 
 export function useLocs(
 	path: string[],
-	{ sortOrder, filter, owner, repo, branch }: UseLocsOptions,
+	{ sortOrder, filter, owner, repo, branch, provider = "github" }: UseLocsOptions,
 ) {
 	const { data, error, isValidating } = useSWRImmutable(
-		["locs", owner, repo, branch, filter],
-		() => ghlocApi.getLocs({ owner, repo, branch, filter }),
+		["locs", provider, owner, repo, branch, filter],
+		() => ghlocApi.getLocs({ owner, repo, branch, filter, provider }),
 		{ keepPreviousData: true },
 	);
 
@@ -37,7 +39,7 @@ export function useLocs(
 
 		let content: string;
 		if (error instanceof FetchError) {
-			content = `Failed to load LOC stats: ${error.data?.error}`;
+			content = `Failed to load LOC stats: ${error.data?.statusMessage ?? error.data?.error ?? error.data ?? error.message}`;
 		} else {
 			content = "Failed to load LOC stats.";
 		}
@@ -109,5 +111,5 @@ export function useLocs(
 		return { ...pathLocs, children: sortedChildren };
 	}, [pathLocs, sortOrder]);
 
-	return { locs: sortedLocs, isValidating };
+	return { locs: sortedLocs, isValidating, error };
 }

@@ -1,5 +1,45 @@
 # ghloc-web
 
+This fork adds **GitCode** support alongside the original GitHub pages.
+
+## GitCode
+
+Choose GitCode on the home page and enter `owner/repo`, or paste a full
+`https://gitcode.com/owner/repo` URL. Direct links use `/gitcode/OWNER/REPO`.
+The branch field accepts a branch, tag, or commit; `HEAD` follows the default branch.
+File trees, extension totals, path filters, and text previews use GitCode's public API.
+
+Counts include non-empty UTF-8 lines, including comments. Binary files count as zero;
+symlinks and submodules are excluded. Filters use ghloc's ordered literal matching:
+`.ts$,.tsx$`, `!test,!.lock`, or `^src/`. The server reads the complete paginated tree
+and never returns partial totals after a failed request. Limits are 2,000 matching
+files, 2 MiB per file, and 50 MiB in total. Narrow the filter for larger repositories.
+GitCode rate limits may require waiting before a retry. Results are cached for five minutes.
+
+Public repositories work without a token. Optional `NITRO_GITCODE_TOKEN` enables
+repository descriptions and metadata. Tokens stay on the server; all file reads
+must also succeed anonymously, so this public application never exposes private repositories.
+GitHub-specific health, npm package and commit activity panels remain on GitHub pages.
+
+GitCode badge endpoint: `/api/gitcode/OWNER/REPO/badge?branch=HEAD&filter=.ts$`.
+It returns the same shields.io endpoint format as the original GitHub badges.
+
+## Render deployment
+
+Create a single **Node web service**, using this fork's `master` branch:
+
+- Build: `corepack pnpm install --frozen-lockfile && corepack pnpm build`
+- Start: `node .output/server/index.mjs`
+- Environment: `HOST=0.0.0.0`, `NODE_ENV=production`
+- Health check: `/health`
+- Use the Free compute plan for a personal deployment.
+
+The Node version is pinned in `.node-version`; pnpm is pinned in `package.json`.
+Nitro's Node server listens on Render's `PORT`. No database or disk is needed.
+For local validation, run `pnpm test`, `pnpm build:languages`, `pnpm lint`, and `pnpm build`.
+
+---
+
 ![build status](https://github.com/pajecawav/ghloc-web/actions/workflows/ci.yml/badge.svg)
 [![lines count](https://img.shields.io/endpoint?url=https://ghloc.dev/api/pajecawav/ghloc-web/badge?filter=.ts$,.tsx$)](https://ghloc.dev/pajecawav/ghloc-web?filter=.ts$,.tsx$)
 [![Firefox addon version](https://img.shields.io/amo/v/ghloc)](https://addons.mozilla.org/en-US/firefox/addon/ghloc/)
