@@ -1,11 +1,12 @@
 import { HTTPError } from "nitro/h3";
+import { REPOSITORY_CACHE_MS } from "../cache-policy.ts";
 
 // Leases prevent eviction while a count or preview is using the bare snapshot.
 export function createSnapshotCache<T>({
 	load,
 	dispose,
 	maxEntries = 2,
-	ttl = 5 * 60_000,
+	ttl = REPOSITORY_CACHE_MS,
 	now = Date.now,
 }: {
 	load: (key: string) => Promise<T>;
