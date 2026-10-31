@@ -1,7 +1,9 @@
 import { definePage } from "@pajecawav/yamf";
 import { HTTPError, HTTPResponse, getQuery, setHeader, withServerTiming } from "nitro/h3";
+import { cachedApiFunction } from "~/lib/cache";
 import { getGhlocGetLocsUrl } from "~/lib/ghloc/api";
 import { ghApi } from "~/lib/github/api";
+import { getPublicGitHubBranch, resolveGitHubRepository } from "~/lib/github/public-repo";
 import { buildPageTitle } from "~/lib/title";
 import { CommitsSection } from "./components/CommitsSection";
 import { HealthSection } from "./components/HealthSection";
@@ -9,6 +11,13 @@ import { InfoSection } from "./components/InfoSection";
 import LocsSection from "./components/LocsSection/LocsSection.island";
 import { PackageSection } from "./components/PackageSection";
 import type { CommonSectionProps } from "./types";
+
+const getRepository = cachedApiFunction("githubPage.getRepository", (owner: string, repo: string) =>
+	resolveGitHubRepository(
+		() => ghApi.getRepo(owner, repo),
+		() => getPublicGitHubBranch(owner, repo),
+	),
+);
 
 export default definePage({
 	render: async (event: any, { head }: any) => {
@@ -23,23 +32,13 @@ export default definePage({
 			throw new HTTPError({ statusCode: 400, statusMessage: "Missing owner or repo" });
 		}
 
-		const data = await withServerTiming(event, "repo", () => ghApi.getRepo(owner, repo)).catch(
-			error => {
-				console.error("Failed to fetch repo:", error);
-				return null;
-			},
+		const { data, defaultBranch } = await withServerTiming(event, "repo", () =>
+			getRepository(owner, repo),
 		);
 
 		if (!branch) {
-			if (!data) {
-				throw new HTTPError({
-					statusCode: 500,
-					statusMessage: "Failed to fetch repo",
-				});
-			}
-
 			const url = new URL(event.url);
-			url.searchParams.set("branch", data.default_branch);
+			url.searchParams.set("branch", defaultBranch);
 
 			return new HTTPResponse(null, {
 				status: 302,

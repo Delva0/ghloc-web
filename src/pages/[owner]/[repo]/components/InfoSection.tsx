@@ -12,7 +12,23 @@ type InfoSectionProps = CommonSectionProps;
 
 export const InfoSection = async ({ owner, repo, data }: InfoSectionProps) => {
 	if (!data) {
-		return <ErrorPlaceholder>Failed to load repo info</ErrorPlaceholder>;
+		return (
+			<>
+				<h1 class="text-xl">
+					<Link
+						href={`https://github.com/${owner}/${repo}`}
+						target="_blank"
+						rel="noopener"
+					>
+						{owner}/{repo}
+					</Link>
+				</h1>
+				<ErrorPlaceholder>
+					GitHub repository details are temporarily unavailable. File statistics remain
+					available below.
+				</ErrorPlaceholder>
+			</>
+		);
 	}
 
 	return (
