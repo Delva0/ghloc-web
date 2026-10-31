@@ -7,17 +7,21 @@ This fork adds **GitCode** support alongside the original GitHub pages.
 Choose GitCode on the home page and enter `owner/repo`, or paste a full
 `https://gitcode.com/owner/repo` URL. Direct links use `/gitcode/OWNER/REPO`.
 The branch field accepts a branch, tag, or commit; `HEAD` follows the default branch.
-File trees, extension totals, path filters, and text previews use GitCode's public API.
+Repository pages, file trees, extension totals, and text previews use anonymous Git
+transport. Only optional authenticated descriptions use GitCode's API. The server requires Git,
+which is included in Render's native Node runtime.
 
 Counts include non-empty UTF-8 lines, including comments. Binary files count as zero;
 symlinks and submodules are excluded. Filters use ghloc's ordered literal matching:
-`.ts$,.tsx$`, `!test,!.lock`, or `^src/`. The server reads the complete paginated tree
+`.ts$,.tsx$`, `!test,!.lock`, or `^src/`. The server reads the complete Git tree
 and never returns partial totals after a failed request. Limits are 2,000 matching
 files, 2 MiB per file, and 50 MiB in total. Narrow the filter for larger repositories.
-GitCode rate limits may require waiting before a retry. Results are cached for five minutes.
+Bulk counting uses one snapshot fetch rather than one API request per file, avoiding
+GitCode's anonymous API rate limits. Results are cached for five minutes. Snapshot
+fetches have a 60-second timeout; no repository code is checked out or executed.
 
 Public repositories work without a token. Optional `NITRO_GITCODE_TOKEN` enables
-repository descriptions and metadata. Tokens stay on the server; all file reads
+repository descriptions and metadata; API errors never block the core features. Tokens stay on the server; all file reads
 must also succeed anonymously, so this public application never exposes private repositories.
 GitHub-specific health, npm package and commit activity panels remain on GitHub pages.
 
