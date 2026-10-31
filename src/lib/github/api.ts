@@ -36,6 +36,24 @@ const createServerFetcher = () => {
 				options.headers.append("Authorization", `token ${token}`);
 			}
 		},
+		onResponseError({ response }) {
+			// Log only public error details and quota headers, never request credentials.
+			console.warn(
+				"GitHub API response",
+				JSON.stringify({
+					status: response.status,
+					message:
+						typeof response._data?.message === "string"
+							? response._data.message.slice(0, 500)
+							: undefined,
+					rateLimit: response.headers.get("x-ratelimit-limit"),
+					rateLimitRemaining: response.headers.get("x-ratelimit-remaining"),
+					rateLimitReset: response.headers.get("x-ratelimit-reset"),
+					rateLimitResource: response.headers.get("x-ratelimit-resource"),
+					requestId: response.headers.get("x-github-request-id"),
+				}),
+			);
+		},
 		headers: {
 			"User-Agent": "ghloc",
 		},
