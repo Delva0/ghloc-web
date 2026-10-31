@@ -1,6 +1,7 @@
 import { IslandProps } from "@pajecawav/yamf";
 import { useState } from "hono/jsx";
 import { useSearchParams } from "wouter";
+import { ErrorPlaceholder } from "~/components/ErrorPlaceholder";
 import { Heading } from "~/components/Heading";
 import { SpinnerIcon } from "~/components/icons/SpinnerIcon";
 import { Input } from "~/components/Input";
@@ -8,6 +9,7 @@ import { Select } from "~/components/Select";
 import { Skeleton } from "~/components/Skeleton";
 import { useDebouncedValue } from "~/lib/debounce";
 import { formatNumber } from "~/lib/format";
+import type { RepositoryProvider } from "~/lib/repository";
 import { cn } from "~/lib/utils";
 import { CommonSectionProps } from "../../types";
 import { Block } from "./components/Block";
@@ -20,6 +22,7 @@ import { isFolder, type SortOrder, useLocs } from "./hooks/useLocs";
 
 interface LocsSectionProps extends CommonSectionProps, IslandProps {
 	branch: string;
+	provider?: RepositoryProvider;
 }
 
 function parseLocsPath(value: string | null): string[] {
@@ -40,7 +43,12 @@ function parseLocsPath(value: string | null): string[] {
 	return [];
 }
 
-export default function LocsSection({ owner, repo, branch }: LocsSectionProps) {
+export default function LocsSection({
+	owner,
+	repo,
+	branch,
+	provider = "github",
+}: LocsSectionProps) {
 	const [searchParams, setSearchParams] = useSearchParams();
 
 	const [sortOrder, setSortOrder] = useState<SortOrder>("type");
@@ -50,12 +58,13 @@ export default function LocsSection({ owner, repo, branch }: LocsSectionProps) {
 
 	const path = parseLocsPath(searchParams.get("locsPath"));
 
-	const { locs, isValidating } = useLocs(path, {
+	const { locs, isValidating, error } = useLocs(path, {
 		sortOrder,
 		filter: debouncedFilter,
 		owner,
 		repo,
 		branch,
+		provider,
 	});
 
 	const setPath = (newPath: string[]) => {
@@ -89,6 +98,15 @@ export default function LocsSection({ owner, repo, branch }: LocsSectionProps) {
 
 	return (
 		<div class="flex flex-col gap-2">
+			{error && (
+				<ErrorPlaceholder>
+					{String(
+						error.data?.statusMessage ??
+							error.data ??
+							"Failed to load LOC stats. Please retry.",
+					)}
+				</ErrorPlaceholder>
+			)}
 			<div class="flex flex-wrap items-center gap-2">
 				<PathBreadcrums
 					path={[repo, ...path]}
@@ -149,16 +167,17 @@ export default function LocsSection({ owner, repo, branch }: LocsSectionProps) {
 									branch={branch}
 									path={path}
 									loc={locs}
+									provider={provider}
 								/>
-							) : !locs ? (
+							) : !locs && !error ? (
 								<Skeleton class="h-80 rounded-md" />
-							) : (
+							) : locs ? (
 								<FileTree
 									locs={locs}
 									onSelect={name => setPath([...path, name])}
 									selectedLanguage={selectedLanguage}
 								/>
-							)}
+							) : null}
 						</Block>
 					</section>
 				</div>
@@ -169,15 +188,15 @@ export default function LocsSection({ owner, repo, branch }: LocsSectionProps) {
 							Lines of code {locs?.loc !== undefined && `(${formatNumber(locs.loc)})`}
 						</Heading>
 						<Block>
-							{!locs ? (
+							{!locs && !error ? (
 								<Skeleton class="h-80 rounded-md" />
-							) : (
+							) : locs ? (
 								<LocsTree
 									locs={locs}
 									selectedLanguage={selectedLanguage}
 									onSelectLanguage={setSelectedLanguage}
 								/>
-							)}
+							) : null}
 						</Block>
 					</section>
 				)}

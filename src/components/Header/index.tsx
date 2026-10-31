@@ -16,7 +16,7 @@ export const Header = () => {
 				</a>
 				<ThemeToggle />
 				<a
-					href="https://github.com/pajecawav/ghloc-web"
+					href="https://github.com/Delva0/ghloc-web"
 					target="_blank"
 					rel="noopener"
 					title="Project source code"

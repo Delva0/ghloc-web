@@ -1,12 +1,15 @@
 import { PropsWithChildren } from "hono/jsx";
 import useSWRImmutable from "swr/immutable";
+import { ErrorPlaceholder } from "~/components/ErrorPlaceholder";
 import { ExternalLinkIcon } from "~/components/icons/ExternalLinkIcon";
 import { Link } from "~/components/Link";
 import { Skeleton } from "~/components/Skeleton";
+import { baseFetcher } from "~/lib/fetcher";
 import { formatBytes } from "~/lib/format";
 import { ghApi } from "~/lib/github/api";
 import { getGitHubFileUrl, getRawGitHubFileUrl } from "~/lib/github/utils";
 import { getLanguageFromExtension } from "~/lib/languages";
+import { gitcodeApiUrl, type RepositoryProvider } from "~/lib/repository";
 import { CodePreview } from "./CodePreview";
 
 // TODO: lazy import
@@ -18,14 +21,40 @@ interface FilePreviewProps {
 	branch: string;
 	path: string[];
 	loc: number;
+	provider?: RepositoryProvider;
 }
 
-export const FilePreview = ({ owner, repo, branch, path: pathProp, loc }: FilePreviewProps) => {
+export const FilePreview = ({
+	owner,
+	repo,
+	branch,
+	path: pathProp,
+	loc,
+	provider = "github",
+}: FilePreviewProps) => {
 	const path = pathProp.join("/");
-	const url = getRawGitHubFileUrl(owner, repo, branch, path);
+	const isGitCode = provider === "gitcode";
+	const gitcodeUrl = gitcodeApiUrl(owner, repo, "file", branch, path);
+	const url = isGitCode ? gitcodeUrl : getRawGitHubFileUrl(owner, repo, branch, path);
+	const { data: gitcodeFile, error: gitcodeError } = useSWRImmutable(
+		isGitCode ? ["gitcodeFile", owner, repo, branch, path] : null,
+		async () => {
+			const blob = await baseFetcher(gitcodeUrl, { responseType: "blob" });
+			const bytes = new Uint8Array(await blob.arrayBuffer());
+			let text: string | undefined;
+			if (!bytes.includes(0)) {
+				try {
+					text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+				} catch {
+					/* binary */
+				}
+			}
+			return { size: blob.size, text };
+		},
+	);
 
 	const { data: metaData } = useSWRImmutable(
-		["fileMeta", owner, repo, branch, path],
+		!isGitCode ? ["fileMeta", owner, repo, branch, path] : null,
 		() => ghApi.getFileMeta(owner, repo, path, branch),
 		{ keepPreviousData: true },
 	);
@@ -33,10 +62,34 @@ export const FilePreview = ({ owner, repo, branch, path: pathProp, loc }: FilePr
 	const isSupported = metaData?.type;
 
 	const { data: fileData } = useSWRImmutable(
-		isSupported ? ["file", owner, repo, branch, path] : null,
+		!isGitCode && isSupported ? ["file", owner, repo, branch, path] : null,
 		() => ghApi.getFile(owner, repo, path, branch),
 		{ keepPreviousData: true },
 	);
+	if (isGitCode) {
+		if (gitcodeError) {
+			return <ErrorPlaceholder>Failed to load file. Please retry.</ErrorPlaceholder>;
+		}
+		if (!gitcodeFile) {
+			return <Skeleton class="h-96" />;
+		}
+		const webUrl = `https://gitcode.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/blob/${encodeURIComponent(branch)}/${path.split("/").map(encodeURIComponent).join("/")}`;
+		if (gitcodeFile.text === undefined) {
+			return <UnsupportedFile url={webUrl} size={gitcodeFile.size} />;
+		}
+		return (
+			<PlainTextFile
+				path={path}
+				text={gitcodeFile.text}
+				size={gitcodeFile.size}
+				loc={loc}
+				owner={owner}
+				repo={repo}
+				branch={branch}
+				provider={provider}
+			/>
+		);
+	}
 
 	if (!metaData || (isSupported && fileData === undefined)) {
 		return <Skeleton class="h-96" />;
@@ -92,6 +145,7 @@ const PlainTextFile = ({
 	owner,
 	repo,
 	branch,
+	provider = "github",
 }: {
 	path: string;
 	text: string;
@@ -100,6 +154,7 @@ const PlainTextFile = ({
 	owner: string;
 	repo: string;
 	branch: string;
+	provider?: RepositoryProvider;
 }) => {
 	// ignore traling empty line
 	const lines = text.trimEnd().split("\n");
@@ -110,7 +165,10 @@ const PlainTextFile = ({
 		? (getLanguageFromExtension(extension, filename) ?? extension)
 		: extension;
 
-	const githubUrl = getGitHubFileUrl(owner, repo, branch, path);
+	const githubUrl =
+		provider === "gitcode"
+			? `https://gitcode.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/blob/${encodeURIComponent(branch)}/${path.split("/").map(encodeURIComponent).join("/")}`
+			: getGitHubFileUrl(owner, repo, branch, path);
 
 	return (
 		<div>
@@ -124,7 +182,7 @@ const PlainTextFile = ({
 					href={githubUrl}
 					target="_blank"
 					rel="noopener"
-					title="Open file on GitHub"
+					title={`Open file on ${provider === "gitcode" ? "GitCode" : "GitHub"}`}
 				>
 					<ExternalLinkIcon class="h-4 w-4" />
 				</a>
