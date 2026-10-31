@@ -47,7 +47,7 @@ export function useLocs(
 		toast.show({ type: "error", content });
 	}, [error]);
 
-	const locs = data;
+	const locs = error ? undefined : data;
 
 	const pathLocs = useMemo<Locs | number | null>(() => {
 		if (!locs) {
@@ -57,7 +57,7 @@ export function useLocs(
 		let pathLocs: Locs = locs;
 
 		for (const dir of path) {
-			if (!pathLocs.children || !(dir in pathLocs.children)) {
+			if (!pathLocs.children || !Object.hasOwn(pathLocs.children, dir)) {
 				return EMPTY_LOCS;
 			}
 
@@ -103,7 +103,7 @@ export function useLocs(
 			return nameA < nameB ? -1 : 1;
 		});
 
-		const sortedChildren: Record<string, LocsChild> = {};
+		const sortedChildren: Record<string, LocsChild> = Object.create(null);
 		for (const name of names) {
 			sortedChildren[name] = children[name];
 		}

@@ -28,7 +28,7 @@ It returns the same shields.io endpoint format as the original GitHub badges.
 
 Create a single **Node web service**, using this fork's `master` branch:
 
-- Build: `corepack pnpm install --frozen-lockfile && corepack pnpm build`
+- Build: `npx --yes pnpm@12.13.0 install --frozen-lockfile --prod=false && npx --yes pnpm@12.13.0 build`
 - Start: `node .output/server/index.mjs`
 - Environment: `HOST=0.0.0.0`, `NODE_ENV=production`
 - Health check: `/health`

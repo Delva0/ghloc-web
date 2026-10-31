@@ -49,7 +49,7 @@ export default function IndexPageContent({ placeholder }: { placeholder: string 
 
 	useLayoutEffect(() => {
 		setActiveIndex(0);
-	}, [data]);
+	}, [data, activeProvider]);
 
 	const onChange = (e: Event) => {
 		if (e.target instanceof HTMLInputElement) {
@@ -76,6 +76,9 @@ export default function IndexPageContent({ placeholder }: { placeholder: string 
 		if (e.key === "Enter") {
 			if (directRepo) {
 				location.href = directRepo.href;
+				return;
+			}
+			if (activeProvider === "gitcode") {
 				return;
 			}
 			const item = data?.items[activeIndex];
