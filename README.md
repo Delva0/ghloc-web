@@ -21,7 +21,7 @@ text previews retain a 2 MiB limit. Snapshots support up to 100,000 regular file
 and 256 MiB compressed Git data each.
 
 Bulk counting uses one snapshot fetch rather than one API request per file, avoiding
-GitCode's anonymous API rate limits. Two bare snapshots are cached for five minutes,
+GitCode's anonymous API rate limits. Two bare snapshots are cached for one day,
 with active readers protected from eviction. Filters and previews reuse the same
 snapshot, and filtered totals reuse a cached per-file line index. Counting jobs run
 one at a time. Snapshot fetches have a 60-second timeout and blob reading has a
@@ -33,6 +33,10 @@ must also succeed anonymously, so this public application never exposes private 
 GitHub-specific health, npm package and commit activity panels remain on GitHub pages.
 If GitHub metadata is unavailable, public default branches are resolved using Git
 so repository entry URLs and external line-counting still work without an API token.
+GitHub server-side queries, GitCode query results and snapshots share a 24-hour
+cache lifetime. Statistics, preview and badge API responses also allow caching for
+86,400 seconds. The existing capacity limits still apply; instance restarts or
+capacity eviction can remove cached entries before their expiry.
 
 GitCode badge endpoint: `/api/gitcode/OWNER/REPO/badge?branch=HEAD&filter=.ts$`.
 It returns the same shields.io endpoint format as the original GitHub badges.

@@ -1,4 +1,5 @@
 import { HTTPError } from "nitro/h3";
+import { REPOSITORY_CACHE_MS } from "../cache-policy.ts";
 import { getGitCodePublicRepo, getGitCodeSnapshot, readGitCodeSnapshotFile } from "./snapshot.ts";
 
 export type GitCodeRepo = {
@@ -67,7 +68,7 @@ function cached<T>(key: string, work: () => Promise<T>): Promise<T> {
 		cache.delete(key);
 		throw error;
 	});
-	cache.set(key, { expires: Date.now() + 5 * 60_000, value });
+	cache.set(key, { expires: Date.now() + REPOSITORY_CACHE_MS, value });
 	return value;
 }
 

@@ -1,5 +1,6 @@
 import { HTTPError } from "nitro/h3";
 import { defineHandler, getQuery, getRouterParams, setHeader, withServerTiming } from "nitro/h3";
+import { REPOSITORY_CACHE_CONTROL, REPOSITORY_CACHE_SECONDS } from "~/lib/cache-policy";
 import { humanize } from "~/lib/format";
 import { ghlocApi, type Locs } from "~/lib/ghloc/api";
 import { ghApi } from "~/lib/github/api";
@@ -27,12 +28,12 @@ export default defineHandler(async event => {
 		throw new HTTPError({ statusCode: 500, statusMessage: "Failed to fetch locs" });
 	}
 
-	setHeader(event, "cache-control", "public, max-age=60");
+	setHeader(event, "cache-control", REPOSITORY_CACHE_CONTROL);
 
 	return {
 		schemaVersion: 1,
 		label: "lines",
 		message: format === "human" ? humanize(locs.loc) : locs.loc.toString(),
-		cacheSeconds: 15 * 60,
+		cacheSeconds: REPOSITORY_CACHE_SECONDS,
 	};
 });
