@@ -14,16 +14,25 @@ which is included in Render's native Node runtime.
 Counts include non-empty UTF-8 lines, including comments. Binary files count as zero;
 symlinks and submodules are excluded. Filters use ghloc's ordered literal matching:
 `.ts$,.tsx$`, `!test,!.lock`, or `^src/`. The server reads the complete Git tree
-and never returns partial totals after a failed request. Limits are 2,000 matching
-files, 2 MiB per file, and 50 MiB in total. Narrow the filter for larger repositories.
+and never returns partial totals after a failed request. File contents are streamed
+through a UTF-8 line counter instead of buffering an entire repository in memory.
+The old 2,000-file, 2 MiB counting-file and 50 MiB content limits are removed;
+text previews retain a 2 MiB limit. Snapshots support up to 100,000 regular files
+and 256 MiB compressed Git data each.
+
 Bulk counting uses one snapshot fetch rather than one API request per file, avoiding
-GitCode's anonymous API rate limits. Results are cached for five minutes. Snapshot
-fetches have a 60-second timeout; no repository code is checked out or executed.
+GitCode's anonymous API rate limits. Two bare snapshots are cached for five minutes,
+with active readers protected from eviction. Filters and previews reuse the same
+snapshot, and filtered totals reuse a cached per-file line index. Counting jobs run
+one at a time. Snapshot fetches have a 60-second timeout and blob reading has a
+120-second timeout; no repository code is checked out or executed.
 
 Public repositories work without a token. Optional `NITRO_GITCODE_TOKEN` enables
 repository descriptions and metadata; API errors never block the core features. Tokens stay on the server; all file reads
 must also succeed anonymously, so this public application never exposes private repositories.
 GitHub-specific health, npm package and commit activity panels remain on GitHub pages.
+If GitHub metadata is unavailable, public default branches are resolved using Git
+so repository entry URLs and external line-counting still work without an API token.
 
 GitCode badge endpoint: `/api/gitcode/OWNER/REPO/badge?branch=HEAD&filter=.ts$`.
 It returns the same shields.io endpoint format as the original GitHub badges.

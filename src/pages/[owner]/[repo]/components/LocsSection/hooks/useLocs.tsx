@@ -29,7 +29,7 @@ export function useLocs(
 	const { data, error, isValidating } = useSWRImmutable(
 		["locs", provider, owner, repo, branch, filter],
 		() => ghlocApi.getLocs({ owner, repo, branch, filter, provider }),
-		{ keepPreviousData: true },
+		{ keepPreviousData: true, shouldRetryOnError: false },
 	);
 
 	useEffect(() => {
@@ -44,7 +44,7 @@ export function useLocs(
 			content = "Failed to load LOC stats.";
 		}
 
-		toast.show({ type: "error", content });
+		toast.show({ id: `locs-error:${provider}:${owner}/${repo}`, type: "error", content });
 	}, [error]);
 
 	const locs = error ? undefined : data;

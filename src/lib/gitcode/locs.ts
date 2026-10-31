@@ -26,17 +26,55 @@ export function matchesFilter(path: string, filter = "") {
 }
 
 export function countLines(content: Uint8Array): number {
-	if (content.includes(0)) {
-		return 0;
-	}
-	try {
-		return new TextDecoder("utf-8", { fatal: true })
-			.decode(content)
-			.split(/\r?\n/)
-			.filter(line => line.trim().length > 0).length;
-	} catch {
-		return 0;
-	}
+	const counter = createLineCounter();
+	counter.write(content);
+	return counter.end();
+}
+
+export function createLineCounter() {
+	const decoder = new TextDecoder("utf-8", { fatal: true });
+	let binary = false;
+	let lines = 0;
+	let pending = false;
+	const consume = (text: string) => {
+		const parts = text.split("\n");
+		for (let index = 0; index < parts.length; index++) {
+			pending ||= parts[index].trim().length > 0;
+			if (index < parts.length - 1) {
+				if (pending) {
+					lines++;
+				}
+				pending = false;
+			}
+		}
+	};
+	return {
+		write(bytes: Uint8Array) {
+			if (binary) {
+				return;
+			}
+			if (bytes.includes(0)) {
+				binary = true;
+				return;
+			}
+			try {
+				consume(decoder.decode(bytes, { stream: true }));
+			} catch {
+				binary = true;
+			}
+		},
+		end() {
+			if (binary) {
+				return 0;
+			}
+			try {
+				consume(decoder.decode());
+			} catch {
+				return 0;
+			}
+			return lines + Number(pending);
+		},
+	};
 }
 
 export function buildLocs(files: { path: string; loc: number }[]): Locs {

@@ -85,7 +85,6 @@ export function getGitCodeFile(owner: string, repo: string, branch: string, path
 	return readGitCodeSnapshotFile(owner, repo, branch, path);
 }
 
-let running = 0;
 export function getGitCodeLocs(owner: string, repo: string, branch = "HEAD", filter = "") {
 	repoPath(owner, repo);
 	if (typeof filter !== "string" || filter.length > 500) {
@@ -94,18 +93,7 @@ export function getGitCodeLocs(owner: string, repo: string, branch = "HEAD", fil
 			statusMessage: "Invalid filter or filter is too long",
 		});
 	}
-	return cached(`locs:${JSON.stringify([owner, repo, branch, filter])}`, async () => {
-		if (running >= 2) {
-			throw new HTTPError({
-				statusCode: 429,
-				statusMessage: "Two repositories are already being counted. Please retry shortly.",
-			});
-		}
-		running++;
-		try {
-			return await getGitCodeSnapshot(owner, repo, branch, filter);
-		} finally {
-			running--;
-		}
-	});
+	return cached(`locs:${JSON.stringify([owner, repo, branch, filter])}`, () =>
+		getGitCodeSnapshot(owner, repo, branch, filter),
+	);
 }
